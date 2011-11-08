@@ -25,12 +25,24 @@
         private ComposablePartCatalog globalCatalog;
         private CompositionContainer globalContainer;
         private ComposablePartCatalog filteredCatalog;
+        private readonly ExportProvider[] perRequestExportProviders;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CompositionDependencyResolver"/> class.
         /// </summary>
         /// <param name="catalog">The catalog.</param>
         public CompositionDependencyResolver(ComposablePartCatalog catalog)
+            : this(catalog, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CompositionDependencyResolver"/> class.
+        /// </summary>
+        /// <param name="catalog">The catalog.</param>
+        /// <param name="globalExportProviders">The global export providers.</param>
+        /// <param name="perRequestExportProviders">The request export providers.</param>
+        public CompositionDependencyResolver(ComposablePartCatalog catalog, ExportProvider[] globalExportProviders, ExportProvider[] perRequestExportProviders)
         {
             // Keep the original catalog
             this.completeCatalog = catalog;
@@ -38,11 +50,20 @@
             // Filter the global part catalog to a set of parts that define PartCreationScope.Global.
             this.globalCatalog = new FilteringCatalog(
                 this.completeCatalog, new HasPartCreationScope(PartCreationScope.Global));
-            this.globalContainer = new CompositionContainer(this.globalCatalog, true, null);
+            this.globalContainer = new CompositionContainer(this.globalCatalog, true, globalExportProviders);
 
             // Filter the per-request part catalog to a set of parts that define PartCreationScope.PerRequest.
             this.filteredCatalog = new FilteringCatalog(
                 this.completeCatalog, new HasPartCreationScope(PartCreationScope.PerRequest));
+
+            // Build all ExportProviders that we need when building request container
+            List<ExportProvider> allRequestExportProviders = new List<ExportProvider>();
+            allRequestExportProviders.Add(this.globalContainer);
+            if (perRequestExportProviders != null)
+            {
+                allRequestExportProviders.AddRange(perRequestExportProviders);
+            }
+            this.perRequestExportProviders = allRequestExportProviders.ToArray();
         }
 
         /// <summary>
@@ -67,7 +88,7 @@
                 if (!CurrentRequestContext.Items.Contains(HttpContextKey))
                 {
                     CurrentRequestContext.Items.Add(HttpContextKey,
-                        new CompositionContainer(this.filteredCatalog, true, this.globalContainer));
+                        new CompositionContainer(this.filteredCatalog, true, this.perRequestExportProviders));
                 }
 
                 return (CompositionContainer)CurrentRequestContext.Items[HttpContextKey];
