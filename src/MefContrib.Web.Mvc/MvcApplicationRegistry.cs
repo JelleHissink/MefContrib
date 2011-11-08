@@ -37,6 +37,8 @@
                         m => new[] { m.GetConstructors().FirstOrDefault(c => c.GetCustomAttributes(typeof(ImportingConstructorAttribute), false).Length > 0) ?? m.GetGreediestConstructor() });
                     x.Import().Members(
                         m => m.GetMembers().Where(mbr => mbr.GetCustomAttributes(typeof(ImportAttribute), false).Length > 0).ToArray());
+                    x.Import().Members(
+                        m => m.GetMembers().Where(mbr => mbr.GetCustomAttributes(typeof(ImportManyAttribute), false).Length > 0).ToArray());
                 });
         }
     }
